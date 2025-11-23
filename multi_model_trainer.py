@@ -527,7 +527,7 @@ def main():
         'warmup_ratio': 0.1,
         'weight_decay': 0.01,
         'seed': 42,
-        'num_evidences': 1  # k parameter per dataset (combined will use k from each)
+        'num_evidences': 2  # k parameter per dataset (combined will use k from each)
     }
     
     print(f"\n{'='*70}")
