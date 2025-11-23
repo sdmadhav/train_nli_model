@@ -12,6 +12,7 @@ from sklearn.metrics import accuracy_score, f1_score, confusion_matrix, classifi
 from tqdm import tqdm
 import logging
 import os
+from pathlib import Path
 from collections import Counter, defaultdict
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -19,11 +20,17 @@ import seaborn as sns
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Get the directory where this script is located
+SCRIPT_DIR = Path(__file__).parent.resolve()
+
 class ClaimVerificationDataset(Dataset):
     """Dataset for claim verification with flexible evidence selection"""
     
     def __init__(self, json_file, tokenizer, max_length=512, num_evidences=1):
-        with open(json_file, 'r') as f:
+        # Convert to absolute path
+        json_path = SCRIPT_DIR / json_file if not Path(json_file).is_absolute() else Path(json_file)
+        
+        with open(json_path, 'r') as f:
             self.data = json.load(f)
         
         self.tokenizer = tokenizer
@@ -34,7 +41,7 @@ class ClaimVerificationDataset(Dataset):
         unique_labels = sorted(set(item['label'] for item in self.data))
         self.label_map = {label: idx for idx, label in enumerate(unique_labels)}
         
-        print(f"Loaded {len(self.data)} examples from {json_file}")
+        print(f"Loaded {len(self.data)} examples from {json_path}")
         print(f"Using {self.num_evidences} evidence(s) per claim")
         print(f"Label distribution: {Counter([item['label'] for item in self.data])}")
         print(f"Label mapping: {self.label_map}")
@@ -105,10 +112,14 @@ class MergedDataset(Dataset):
         self.num_evidences = num_evidences
         self.label_map = label_map
         
+        # Convert to absolute paths
+        our_path = SCRIPT_DIR / our_file if not Path(our_file).is_absolute() else Path(our_file)
+        quantemp_path = SCRIPT_DIR / quantemp_file if not Path(quantemp_file).is_absolute() else Path(quantemp_file)
+        
         # Load both datasets
-        with open(our_file, 'r') as f:
+        with open(our_path, 'r') as f:
             our_data = json.load(f)
-        with open(quantemp_file, 'r') as f:
+        with open(quantemp_path, 'r') as f:
             quantemp_data = json.load(f)
         
         # Create claim-based lookup for both datasets
@@ -310,7 +321,7 @@ def train_model(model, train_loader, val_loader, device, config, model_name):
         if val_f1 > best_f1:
             best_f1 = val_f1
             best_epoch = epoch + 1
-            save_dir = f"./models/{model_name}"
+            save_dir = SCRIPT_DIR / "models" / model_name
             os.makedirs(save_dir, exist_ok=True)
             model.save_pretrained(save_dir)
             print(f"  💾 Saved best model (F1: {best_f1:.4f})")
@@ -379,10 +390,11 @@ def evaluate_model(model, test_loader, device, label_map, model_name):
     }
 
 
-def plot_training_metrics(histories, model_names, save_dir='./plots'):
+def plot_training_metrics(histories, model_names, save_dir='plots'):
     """Plot training and validation metrics"""
     
-    os.makedirs(save_dir, exist_ok=True)
+    save_path = SCRIPT_DIR / save_dir
+    os.makedirs(save_path, exist_ok=True)
     
     fig, axes = plt.subplots(2, 2, figsize=(15, 12))
     
@@ -427,15 +439,16 @@ def plot_training_metrics(histories, model_names, save_dir='./plots'):
     ax.grid(True, alpha=0.3)
     
     plt.tight_layout()
-    plt.savefig(f'{save_dir}/training_metrics.png', dpi=300, bbox_inches='tight')
-    print(f"📊 Training metrics plot saved to {save_dir}/training_metrics.png")
+    plt.savefig(save_path / 'training_metrics.png', dpi=300, bbox_inches='tight')
+    print(f"📊 Training metrics plot saved to {save_path / 'training_metrics.png'}")
     plt.close()
 
 
-def plot_confusion_matrices(results_list, model_names, save_dir='./plots'):
+def plot_confusion_matrices(results_list, model_names, save_dir='plots'):
     """Plot confusion matrices for all models"""
     
-    os.makedirs(save_dir, exist_ok=True)
+    save_path = SCRIPT_DIR / save_dir
+    os.makedirs(save_path, exist_ok=True)
     
     n_models = len(results_list)
     fig, axes = plt.subplots(1, n_models, figsize=(6*n_models, 5))
@@ -455,15 +468,16 @@ def plot_confusion_matrices(results_list, model_names, save_dir='./plots'):
         axes[idx].set_xlabel('Predicted Label')
     
     plt.tight_layout()
-    plt.savefig(f'{save_dir}/confusion_matrices.png', dpi=300, bbox_inches='tight')
-    print(f"📊 Confusion matrices saved to {save_dir}/confusion_matrices.png")
+    plt.savefig(save_path / 'confusion_matrices.png', dpi=300, bbox_inches='tight')
+    print(f"📊 Confusion matrices saved to {save_path / 'confusion_matrices.png'}")
     plt.close()
 
 
-def save_predictions(results_list, model_names, save_dir='./predictions'):
+def save_predictions(results_list, model_names, save_dir='predictions'):
     """Save predictions for each model"""
     
-    os.makedirs(save_dir, exist_ok=True)
+    save_path = SCRIPT_DIR / save_dir
+    os.makedirs(save_path, exist_ok=True)
     
     for results, name in zip(results_list, model_names):
         predictions_data = []
@@ -479,7 +493,7 @@ def save_predictions(results_list, model_names, save_dir='./predictions'):
                 'true_label': results['label_names'][true_label]
             })
         
-        filename = f'{save_dir}/{name}_predictions.json'
+        filename = save_path / f'{name}_predictions.json'
         with open(filename, 'w') as f:
             json.dump(predictions_data, f, indent=2)
         
@@ -487,16 +501,33 @@ def save_predictions(results_list, model_names, save_dir='./predictions'):
 
 
 def main():
+    # Print current working directory for debugging
+    print(f"\n{'='*70}")
+    print("DIRECTORY INFORMATION")
+    print(f"{'='*70}")
+    print(f"Script directory: {SCRIPT_DIR}")
+    print(f"Current working directory: {os.getcwd()}")
+    print(f"\nLooking for JSON files in: {SCRIPT_DIR}")
+    
+    # List files in the script directory
+    json_files = list(SCRIPT_DIR.glob('*.json'))
+    if json_files:
+        print("\nFound JSON files:")
+        for f in json_files:
+            print(f"  - {f.name}")
+    else:
+        print("\n⚠️ Warning: No JSON files found in script directory!")
+    
     # Configuration
     CONFIG = {
         'batch_size': 8,
         'learning_rate': 2e-5,
-        'epochs': 5,
+        'epochs': 20,
         'max_length': 512,
         'warmup_ratio': 0.1,
         'weight_decay': 0.01,
         'seed': 42,
-        'num_evidences': 1  # k parameter per dataset (combined will use k from each)
+        'num_evidences': 2  # k parameter per dataset (combined will use k from each)
     }
     
     print(f"\n{'='*70}")
@@ -638,9 +669,9 @@ def main():
     print("="*70)
     
     # Load trained models
-    model1_loaded = RobertaForSequenceClassification.from_pretrained('./models/model1_our_only')
-    model2_loaded = RobertaForSequenceClassification.from_pretrained('./models/model2_merged')
-    model3_loaded = RobertaForSequenceClassification.from_pretrained('./models/model3_quantemp_only')
+    model1_loaded = RobertaForSequenceClassification.from_pretrained(str(SCRIPT_DIR / 'models' / 'model1_our_only'))
+    model2_loaded = RobertaForSequenceClassification.from_pretrained(str(SCRIPT_DIR / 'models' / 'model2_merged'))
+    model3_loaded = RobertaForSequenceClassification.from_pretrained(str(SCRIPT_DIR / 'models' / 'model3_quantemp_only'))
     
     # Create test datasets
     print("\n--- Creating Test Datasets ---")
@@ -711,7 +742,7 @@ def main():
         ['Model 1 (Our)', 'Model 2 (Merged)', 'Model 3 (QuantEmp)']
     )
     
-    # # Save predictions
+    # Save predictions
     save_predictions(
         [results['model1_on_our'], results['model2_on_merged'], results['model3_on_quantemp']],
         ['model1_our', 'model2_merged', 'model3_quantemp']
@@ -765,7 +796,8 @@ def main():
     }
     
     # Save summary
-    with open('final_comparison_summary.json', 'w') as f:
+    summary_path = SCRIPT_DIR / 'final_comparison_summary.json'
+    with open(summary_path, 'w') as f:
         json.dump(summary, f, indent=2)
     
     # Print comparison table
@@ -802,10 +834,10 @@ def main():
     print(f"\n🏆 Best Model: {best_model} with F1-Weighted = {f1_scores[best_model]:.4f}")
     
     print("\n✅ All processes completed!")
-    print("📊 Summary saved to 'final_comparison_summary.json'")
-    print("📈 Plots saved to './plots/' directory")
-    print("💾 Predictions saved to './predictions/' directory")
-    print("🤖 Models saved to './models/' directory")
+    print(f"📊 Summary saved to '{summary_path}'")
+    print(f"📈 Plots saved to '{SCRIPT_DIR / 'plots'}' directory")
+    print(f"💾 Predictions saved to '{SCRIPT_DIR / 'predictions'}' directory")
+    print(f"🤖 Models saved to '{SCRIPT_DIR / 'models'}' directory")
 
 
 if __name__ == "__main__":
