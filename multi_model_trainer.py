@@ -543,7 +543,7 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"\nUsing device: {device}")
     
-    tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
+    tokenizer = RobertaTokenizer.from_pretrained('roberta-large')
     
     # ========================================================================
     # Load "our" dataset to get label mapping
@@ -580,7 +580,7 @@ def main():
     our_val_loader = DataLoader(our_val_dataset, batch_size=CONFIG['batch_size'], shuffle=False)
     
     model1 = RobertaForSequenceClassification.from_pretrained(
-        'roberta-base',
+        'roberta-large',
         num_labels=len(LABEL_MAP)
     )
     
@@ -618,7 +618,7 @@ def main():
     merged_val_loader = DataLoader(merged_val_dataset, batch_size=CONFIG['batch_size'], shuffle=False)
     
     model2 = RobertaForSequenceClassification.from_pretrained(
-        'roberta-base',
+        'roberta-large',
         num_labels=len(LABEL_MAP)
     )
     
@@ -652,7 +652,7 @@ def main():
     quantemp_val_loader = DataLoader(quantemp_val_dataset, batch_size=CONFIG['batch_size'], shuffle=False)
     
     model3 = RobertaForSequenceClassification.from_pretrained(
-        'roberta-base',
+        'roberta-large',
         num_labels=len(LABEL_MAP)
     )
     
