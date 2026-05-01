@@ -490,7 +490,7 @@ def main():
     model.to(device)
 
     # ── Train ─────────────────────────────────────────────────────────────────
-    save_dir  = str("models" / "multi_encoder_finqa_roberta")
+    save_dir  = str("models/multi_encoder_finqa_roberta")
     ckpt_path = train(model, train_loader, val_loader, device, CONFIG, save_dir)
 
     # ── Evaluate best checkpoint ──────────────────────────────────────────────
